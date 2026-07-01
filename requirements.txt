@@ -1,0 +1,18 @@
+# Requirements for Wind Rose Diagram Generator (Streamlit app)
+# Generated: 2026-07-01
+
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.26.0
+plotly>=5.18.0
+requests>=2.31.0
+openpyxl>=3.1.2
+
+# Optional but recommended (enables city name search / geocoding)
+geopy>=2.4.0
+
+# Notes:
+# - geopy is optional. The app works without it (use lat/lon inputs or presets).
+# - All packages are lightweight and commonly used in environmental data dashboards.
+# - Tested with Python 3.10–3.12.
+# - Run with: pip install -r requirements.txt
