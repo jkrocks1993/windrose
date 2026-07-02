@@ -494,7 +494,7 @@ def create_professional_frequency_table(df: pd.DataFrame, calm_threshold_kmh: fl
     }
 
 
-def _create_windrose_sheet(ws, freq_table, col_totals, meta, sheet_title, is_overall=True):
+def _create_windrose_sheet(ws, freq_table, col_totals, meta, sheet_title, image_bytes=None, is_overall=True):
     """Helper function to create one formatted wind rose sheet."""
     # Styles (same as before)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
