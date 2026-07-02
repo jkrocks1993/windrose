@@ -849,8 +849,16 @@ def generate_monthly_windrose_excel(df: pd.DataFrame, location_name: str,
         plt.close(overall_fig)
 
     _create_windrose_sheet(ws_overall, freq_table, col_totals, meta, 
-                           f"Overall - {location_name} ({start_date} to {end_date})",
-                           image_bytes=overall_img_bytes)
+                           f"Overall - {location_name} ({start_date} to {end_date})")
+
+    # Embed image directly for Overall sheet
+    if overall_img_bytes:
+        from openpyxl.drawing.image import Image as XLImage
+        from io import BytesIO as BIO
+        img = XLImage(BIO(overall_img_bytes))
+        img.width = 380
+        img.height = 380
+        ws_overall.add_image(img, "L3")
 
     # --- Monthly Sheets ---
     df = df.copy()
@@ -878,8 +886,16 @@ def generate_monthly_windrose_excel(df: pd.DataFrame, location_name: str,
 
         ws_month = wb.create_sheet(title=month)
         _create_windrose_sheet(ws_month, freq_table_m, col_totals_m, meta_m,
-                               f"{month} - {location_name}",
-                               image_bytes=month_img_bytes)
+                               f"{month} - {location_name}")
+
+        # Embed image directly (more reliable)
+        if month_img_bytes:
+            from openpyxl.drawing.image import Image as XLImage
+            from io import BytesIO as BIO
+            img = XLImage(BIO(month_img_bytes))
+            img.width = 380
+            img.height = 380
+            ws_month.add_image(img, "L3")
 
     # Save
     from io import BytesIO
