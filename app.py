@@ -1336,8 +1336,7 @@ if 'freq_table' in st.session_state:
         - **Color** = average wind speed from that direction (see colorbar). Darker/higher = stronger winds.
         - **Center label** = % of time winds are calm (below {calm_threshold} {speed_unit}).
         - **Dominant direction** is the longest petal (most frequent).
-        - For your coastal Karnataka location: Expect strong SW–W winds during monsoon (Jun–Sep) and NE–E in winter (Dec–Feb).
-        """)
+        
     
     # ========== PROFESSIONAL FREQUENCY TABLE (Enviroware / EIA style) ==========
     if freq_table is not None:
