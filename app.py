@@ -839,7 +839,8 @@ def generate_monthly_windrose_excel(df: pd.DataFrame, location_name: str,
     overall_fig = create_layered_windrose_matplotlib(
         freq_table, meta, location_name, start_date, end_date,
         calm_threshold_kmh=calm_threshold_kmh, mode="percent",
-        color_palette="Image Style", show_calm_circle=True
+        color_palette=st.session_state.get('last_color_palette', 'Image Style'),
+        show_calm_circle=st.session_state.get('last_show_calm_circle', True)
     )
     overall_img_bytes = None
     if overall_fig:
@@ -871,11 +872,12 @@ def generate_monthly_windrose_excel(df: pd.DataFrame, location_name: str,
 
         freq_table_m, col_totals_m, meta_m = create_professional_frequency_table(monthly_df, calm_threshold_kmh)
         
-        # Generate monthly wind rose image
+        # Generate monthly wind rose image (respect user customization)
         month_fig = create_layered_windrose_matplotlib(
             freq_table_m, meta_m, location_name, month, month,
             calm_threshold_kmh=calm_threshold_kmh, mode="percent",
-            color_palette="Image Style", show_calm_circle=True
+            color_palette=st.session_state.get('last_color_palette', 'Image Style'),
+            show_calm_circle=st.session_state.get('last_show_calm_circle', True)
         )
         month_img_bytes = None
         if month_fig:
@@ -1257,6 +1259,7 @@ if 'freq_table' in st.session_state:
                 index=0,
                 help="Image Style matches the classic colorful wind rose you showed earlier."
             )
+            st.session_state['last_color_palette'] = color_palette
             custom_title = st.text_input(
                 "Custom Title (optional)",
                 placeholder="e.g. Nethravathi Catchment - Pre-Monsoon 2025",
@@ -1268,6 +1271,7 @@ if 'freq_table' in st.session_state:
             show_value_labels = st.checkbox("Show percentage / count labels", value=True)
             show_grid = st.checkbox("Show grid lines", value=True)
             show_calm_circle = st.checkbox("Show calm circle in center", value=True)
+            st.session_state['last_show_calm_circle'] = show_calm_circle
             reverse_stacking = st.checkbox("Reverse stacking (strongest winds inside)", value=False)
         
         dpi = st.select_slider(
