@@ -796,17 +796,23 @@ def generate_enviroware_style_excel(freq_table: pd.DataFrame, col_totals: pd.Ser
     ws[f'A{footer_row}'] = f"© Wind Rose Generator | Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')} IST | Location: {location_name}"
     ws[f'A{footer_row}'].font = Font(italic=True, size=8, color="666666")
 
+    # Embed wind rose image if provided
+    if image_bytes is not None:
+        from openpyxl.drawing.image import Image as XLImage
+        from io import BytesIO as BIO
+        img = XLImage(BIO(image_bytes))
+        img.width = 420
+        img.height = 420
+        # Place image to the right of the table
+        ws.add_image(img, "L3")
+
     # Adjust column widths
     ws.column_dimensions['A'].width = 12
     for col in range(2, 11):
-        ws.column_dimensions[get_column_letter(col)].width = 14
+        ws.column_dimensions[get_column_letter(col)].width = 13
 
-    # Save to bytes
-    from io import BytesIO
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-    return output.getvalue()
+    # Freeze header
+    ws.freeze_panes = 'A4'
 
 
 # ============== NEW: MONTHLY EXCEL EXPORT ==============
@@ -828,23 +834,52 @@ def generate_monthly_windrose_excel(df: pd.DataFrame, location_name: str,
     ws_overall.title = "Overall"
 
     freq_table, col_totals, meta = create_professional_frequency_table(df, calm_threshold_kmh)
+    
+    # Generate overall wind rose image
+    overall_fig = create_layered_windrose_matplotlib(
+        freq_table, meta, location_name, start_date, end_date,
+        calm_threshold_kmh=calm_threshold_kmh, mode="percent",
+        color_palette="Image Style", show_calm_circle=True
+    )
+    overall_img_bytes = None
+    if overall_fig:
+        buf = io.BytesIO()
+        overall_fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+        overall_img_bytes = buf.getvalue()
+        plt.close(overall_fig)
+
     _create_windrose_sheet(ws_overall, freq_table, col_totals, meta, 
-                           f"Overall - {location_name} ({start_date} to {end_date})")
+                           f"Overall - {location_name} ({start_date} to {end_date})",
+                           image_bytes=overall_img_bytes)
 
     # --- Monthly Sheets ---
     df = df.copy()
-    df['month'] = df['time'].dt.to_period('M').astype(str)  # e.g. '2025-01'
+    df['month'] = df['time'].dt.to_period('M').astype(str)
 
     for month in sorted(df['month'].unique()):
         monthly_df = df[df['month'] == month]
-        if len(monthly_df) < 50:  # skip months with very little data
+        if len(monthly_df) < 80:  # skip sparse months
             continue
 
         freq_table_m, col_totals_m, meta_m = create_professional_frequency_table(monthly_df, calm_threshold_kmh)
         
+        # Generate monthly wind rose image
+        month_fig = create_layered_windrose_matplotlib(
+            freq_table_m, meta_m, location_name, month, month,
+            calm_threshold_kmh=calm_threshold_kmh, mode="percent",
+            color_palette="Image Style", show_calm_circle=True
+        )
+        month_img_bytes = None
+        if month_fig:
+            buf = io.BytesIO()
+            month_fig.savefig(buf, format="png", dpi=140, bbox_inches="tight", facecolor="white")
+            month_img_bytes = buf.getvalue()
+            plt.close(month_fig)
+
         ws_month = wb.create_sheet(title=month)
         _create_windrose_sheet(ws_month, freq_table_m, col_totals_m, meta_m,
-                               f"{month} - {location_name}")
+                               f"{month} - {location_name}",
+                               image_bytes=month_img_bytes)
 
     # Save
     from io import BytesIO
