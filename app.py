@@ -494,11 +494,131 @@ def create_professional_frequency_table(df: pd.DataFrame, calm_threshold_kmh: fl
     }
 
 
+def _create_windrose_sheet(ws, freq_table, col_totals, meta, sheet_title, is_overall=True):
+    """Helper function to create one formatted wind rose sheet."""
+    # Styles (same as before)
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    yellow_fill = PatternFill(start_color="FFFF99", end_color="FFFF99", fill_type="solid")
+    green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+    light_blue_fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    # Title
+    ws.merge_cells('A1:J1')
+    ws['A1'] = sheet_title
+    ws['A1'].font = Font(bold=True, size=13, color="1F4E79")
+    ws['A1'].alignment = Alignment(horizontal='center')
+
+    # Headers
+    headers_row = 3
+    speed_labels = meta["speed_labels"]
+    dir_labels = meta["dir_labels"]
+
+    ws.cell(row=headers_row, column=1, value="Direction").font = header_font
+    ws.cell(row=headers_row, column=1).fill = header_fill
+    ws.cell(row=headers_row, column=1).alignment = center_align
+    ws.cell(row=headers_row, column=1).border = thin_border
+
+    for col_idx, label in enumerate(speed_labels, start=2):
+        cell = ws.cell(row=headers_row, column=col_idx, value=label)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    ws.cell(row=headers_row, column=8, value="Avg Speed (m/s)").font = header_font
+    ws.cell(row=headers_row, column=8).fill = header_fill
+    ws.cell(row=headers_row, column=8).alignment = center_align
+    ws.cell(row=headers_row, column=8).border = thin_border
+
+    ws.cell(row=headers_row, column=9, value="Events").font = header_font
+    ws.cell(row=headers_row, column=9).fill = header_fill
+    ws.cell(row=headers_row, column=9).alignment = center_align
+    ws.cell(row=headers_row, column=9).border = thin_border
+
+    ws.cell(row=headers_row, column=10, value="Events (%)").font = header_font
+    ws.cell(row=headers_row, column=10).fill = header_fill
+    ws.cell(row=headers_row, column=10).alignment = center_align
+    ws.cell(row=headers_row, column=10).border = thin_border
+
+    # Data rows
+    data_start_row = 4
+    for row_offset, direction in enumerate(dir_labels):
+        row = data_start_row + row_offset
+        ws.cell(row=row, column=1, value=direction).font = Font(bold=True)
+        ws.cell(row=row, column=1).alignment = center_align
+        ws.cell(row=row, column=1).border = thin_border
+
+        for col_offset, sp_label in enumerate(speed_labels):
+            col = 2 + col_offset
+            val = int(freq_table.loc[direction, sp_label]) if direction in freq_table.index else 0
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.fill = yellow_fill
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        # Average Speed
+        avg_val = freq_table.loc[direction, "Average Speed (m/s)"] if direction in freq_table.index else 0
+        cell = ws.cell(row=row, column=8, value=avg_val)
+        cell.fill = green_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+        cell.number_format = '0.0'
+
+        # Events
+        events_val = int(freq_table.loc[direction, "Number of events"]) if direction in freq_table.index else 0
+        ws.cell(row=row, column=9, value=events_val).alignment = center_align
+        ws.cell(row=row, column=9).border = thin_border
+
+        # %
+        pct_val = freq_table.loc[direction, "Events (%)"] if direction in freq_table.index else 0
+        cell = ws.cell(row=row, column=10, value=pct_val)
+        cell.alignment = center_align
+        cell.border = thin_border
+        cell.number_format = '0.0"%"'
+
+    # TOTAL row
+    total_row = data_start_row + 16
+    ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=total_row, column=1).fill = light_blue_fill
+    ws.cell(row=total_row, column=1).border = thin_border
+    ws.cell(row=total_row, column=1).alignment = center_align
+
+    for col_offset, sp_label in enumerate(speed_labels):
+        col = 2 + col_offset
+        val = int(col_totals.get(sp_label, 0))
+        cell = ws.cell(row=total_row, column=col, value=val)
+        cell.font = Font(bold=True)
+        cell.fill = light_blue_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    ws.cell(row=total_row, column=8, value=round(meta.get("overall_mean_ms", 0), 1)).font = Font(bold=True)
+    ws.cell(row=total_row, column=8).fill = green_fill
+    ws.cell(row=total_row, column=8).alignment = center_align
+    ws.cell(row=total_row, column=8).border = thin_border
+
+    ws.cell(row=total_row, column=9, value=meta.get("total_obs", 0)).font = Font(bold=True)
+    ws.cell(row=total_row, column=9).fill = light_blue_fill
+    ws.cell(row=total_row, column=9).alignment = center_align
+    ws.cell(row=total_row, column=9).border = thin_border
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 12
+    for col in range(2, 11):
+        ws.column_dimensions[get_column_letter(col)].width = 13
+
+
 def generate_enviroware_style_excel(freq_table: pd.DataFrame, col_totals: pd.Series, 
-                                     meta: dict, location_name: str, start_date: str, end_date: str):
+                                     meta: dict, location_name: str, start_date: str, end_date: str,
+                                     df: pd.DataFrame = None, calm_threshold_kmh: float = 3.0):
     """
-    Generate a professional .xlsx file that closely mimics Enviroware WindRose PRO output.
-    Includes the frequency table with proper coloring, notes, and summary.
+    Generate a professional .xlsx file with Overall + Monthly sheets.
     """
     wb = Workbook()
     ws = wb.active
@@ -682,6 +802,51 @@ def generate_enviroware_style_excel(freq_table: pd.DataFrame, col_totals: pd.Ser
         ws.column_dimensions[get_column_letter(col)].width = 14
 
     # Save to bytes
+    from io import BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+# ============== NEW: MONTHLY EXCEL EXPORT ==============
+
+def generate_monthly_windrose_excel(df: pd.DataFrame, location_name: str, 
+                                    start_date: str, end_date: str, calm_threshold_kmh: float = 3.0):
+    """
+    Generate an Excel file with:
+    - 'Overall' sheet
+    - One sheet per month with frequency table
+    """
+    if df is None or df.empty:
+        return None
+
+    wb = Workbook()
+
+    # --- Overall Sheet ---
+    ws_overall = wb.active
+    ws_overall.title = "Overall"
+
+    freq_table, col_totals, meta = create_professional_frequency_table(df, calm_threshold_kmh)
+    _create_windrose_sheet(ws_overall, freq_table, col_totals, meta, 
+                           f"Overall - {location_name} ({start_date} to {end_date})")
+
+    # --- Monthly Sheets ---
+    df = df.copy()
+    df['month'] = df['time'].dt.to_period('M').astype(str)  # e.g. '2025-01'
+
+    for month in sorted(df['month'].unique()):
+        monthly_df = df[df['month'] == month]
+        if len(monthly_df) < 50:  # skip months with very little data
+            continue
+
+        freq_table_m, col_totals_m, meta_m = create_professional_frequency_table(monthly_df, calm_threshold_kmh)
+        
+        ws_month = wb.create_sheet(title=month)
+        _create_windrose_sheet(ws_month, freq_table_m, col_totals_m, meta_m,
+                               f"{month} - {location_name}")
+
+    # Save
     from io import BytesIO
     output = BytesIO()
     wb.save(output)
@@ -1175,16 +1340,28 @@ if 'freq_table' in st.session_state:
         st.caption("Plot PNG: Use the camera icon on the chart above.\nFor high-res report figures, increase sectors or period.")
     
     with col_dl4:
-        # Professional Excel Report (Enviroware-style)
+        # Professional Excel Report
         if freq_table is not None:
-            excel_bytes = generate_enviroware_style_excel(freq_table, col_totals, table_meta, location_name, start_str, end_str)
+            include_monthly = st.checkbox("Include monthly sheets", value=False, key="monthly_excel")
+            
+            if include_monthly and 'df' in st.session_state:
+                excel_bytes = generate_monthly_windrose_excel(
+                    st.session_state['df'], location_name, start_str, end_str, calm_threshold
+                )
+                label = "📥 Download Monthly Excel (.xlsx)"
+            else:
+                excel_bytes = generate_enviroware_style_excel(
+                    freq_table, col_totals, table_meta, location_name, start_str, end_str
+                )
+                label = "📥 Download Wind Rose Excel (.xlsx)"
+            
             st.download_button(
-                label="📥 Download Wind Rose Excel (.xlsx)",
+                label=label,
                 data=excel_bytes,
-                file_name=f"WindRose_Report_{location_name.replace(' ', '_')}_{start_str}_{end_str}.xlsx",
+                file_name=f"WindRose_{'Monthly_' if include_monthly else ''}{location_name.replace(' ', '_')}_{start_str}_{end_str}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
-                help="Professional formatted table matching WindRose PRO / EIA report style with notes"
+                help="Includes Overall + one sheet per month with full frequency tables"
             )
     
     # Raw data sample
@@ -1205,6 +1382,15 @@ if 'freq_table' in st.session_state:
         f"<div class='footer'>Data source: <a href='https://open-meteo.com/' target='_blank'>Open-Meteo Historical Weather API</a> "
         f"(reanalysis + observations blend). Not for operational forecasting. App generated on {datetime.now().strftime('%Y-%m-%d %H:%M')} IST. "
         f"Location: {lat:.4f}°N, {lon:.4f}°E</div>",
+        unsafe_allow_html=True
+    )
+
+    # Ko-fi support link
+    st.markdown(
+        "<div style='text-align: center; margin-top: 15px;'>"
+        "If this tool helps your work, consider supporting its development → "
+        "<a href='https://ko-fi.com/jayakrishnash001' target='_blank' style='color:#ff5f5f; font-weight:600;'>☕ Buy me a coffee on Ko-fi</a>"
+        "</div>",
         unsafe_allow_html=True
     )
 
