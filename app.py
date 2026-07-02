@@ -616,9 +616,11 @@ def _create_windrose_sheet(ws, freq_table, col_totals, meta, sheet_title, image_
 
 def generate_enviroware_style_excel(freq_table: pd.DataFrame, col_totals: pd.Series, 
                                      meta: dict, location_name: str, start_date: str, end_date: str,
-                                     df: pd.DataFrame = None, calm_threshold_kmh: float = 3.0):
+                                     df: pd.DataFrame = None, calm_threshold_kmh: float = 3.0,
+                                     image_bytes: bytes = None):
     """
-    Generate a professional .xlsx file with Overall + Monthly sheets.
+    Generate a professional .xlsx file (single sheet version).
+    Supports optional embedded image.
     """
     wb = Workbook()
     ws = wb.active
