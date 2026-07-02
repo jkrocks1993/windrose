@@ -1073,16 +1073,15 @@ def create_layered_windrose_matplotlib(freq_table, table_meta, location_name, st
     return fig
 
 
-def create_mean_speed_rose(freq_table, location_name, start_date, end_date):
+def create_mean_speed_rose(freq_table, location_name, start_date, end_date,
+                             color_palette="plasma", show_labels=True, custom_title=None):
     """
     Create a clean polar plot showing average wind speed from each direction.
-    Petal length = mean wind speed (m/s). Very useful companion to frequency rose.
+    Supports color palette, label visibility, and custom title.
     """
     if freq_table is None or freq_table.empty:
         return None
 
-    dir_labels = freq_table.index.tolist() if hasattr(freq_table, 'index') else list(freq_table["direction"]) if "direction" in freq_table.columns else []
-    # Better: use the index from freq_table which is already ordered
     if not isinstance(freq_table.index, pd.Index):
         return None
 
@@ -1095,11 +1094,17 @@ def create_mean_speed_rose(freq_table, location_name, start_date, end_date):
 
     fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True), facecolor="white")
 
-    # Color by mean speed (higher = warmer)
-    colors = plt.cm.YlOrRd(np.linspace(0.2, 0.95, n))  # nice warm gradient
-    # Or use actual speed for color
+    # Color mapping
+    cmap_dict = {
+        "plasma": plt.cm.plasma,
+        "viridis": plt.cm.viridis,
+        "YlOrRd": plt.cm.YlOrRd,
+        "coolwarm": plt.cm.coolwarm,
+        "Image Style": plt.cm.plasma,  # fallback
+    }
+    cmap = cmap_dict.get(color_palette, plt.cm.plasma)
     norm = plt.Normalize(vmin=mean_speeds.min(), vmax=mean_speeds.max())
-    colors = plt.cm.plasma(norm(mean_speeds))
+    colors = cmap(norm(mean_speeds))
 
     bars = ax.bar(
         theta,
@@ -1112,21 +1117,22 @@ def create_mean_speed_rose(freq_table, location_name, start_date, end_date):
     )
 
     # Add value labels on top of bars
-    for angle, speed, dlabel in zip(theta, mean_speeds, dirs):
-        ax.text(
-            angle,
-            speed + 0.15,
-            f"{speed:.1f}",
-            ha="center", va="bottom",
-            fontsize=8, fontweight="bold", color="#333333"
-        )
-        ax.text(
-            angle,
-            -0.6,  # slightly inside
-            dlabel,
-            ha="center", va="top",
-            fontsize=9, fontweight="bold", color="#222222"
-        )
+    if show_labels:
+        for angle, speed, dlabel in zip(theta, mean_speeds, dirs):
+            ax.text(
+                angle,
+                speed + 0.15,
+                f"{speed:.1f}",
+                ha="center", va="bottom",
+                fontsize=8, fontweight="bold", color="#333333"
+            )
+            ax.text(
+                angle,
+                -0.6,
+                dlabel,
+                ha="center", va="top",
+                fontsize=9, fontweight="bold", color="#222222"
+            )
 
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
@@ -1136,10 +1142,8 @@ def create_mean_speed_rose(freq_table, location_name, start_date, end_date):
     ax.set_yticklabels([])
     ax.set_xticklabels([])
 
-    ax.set_title(
-        f"Average Wind Speed by Direction — {location_name}\n{start_date} to {end_date}",
-        pad=15, fontsize=12, fontweight="bold"
-    )
+    title_text = custom_title if custom_title else f"Average Wind Speed by Direction — {location_name}\n{start_date} to {end_date}"
+    ax.set_title(title_text, pad=15, fontsize=12, fontweight="bold")
 
     # Colorbar
     sm = plt.cm.ScalarMappable(cmap="plasma", norm=norm)
@@ -1313,8 +1317,28 @@ if 'freq_table' in st.session_state:
     # ========== AVERAGE WIND SPEED ROSE ==========
     st.subheader("📈 Average Wind Speed by Direction")
     st.caption("Petal length = mean wind speed (m/s) from that direction. Very useful companion to the frequency rose for understanding wind strength patterns.")
-    
-    mean_speed_fig = create_mean_speed_rose(freq_table, location_name, start_str, end_str)
+
+    # Small customization panel for Average Speed Rose
+    with st.expander("⚙️ Customize Average Speed Rose"):
+        avg_color = st.selectbox(
+            "Color Palette",
+            options=["plasma", "viridis", "YlOrRd", "coolwarm"],
+            index=0,
+            key="avg_color_palette"
+        )
+        avg_show_labels = st.checkbox("Show direction & value labels", value=True, key="avg_show_labels")
+        avg_custom_title = st.text_input(
+            "Custom Title (optional)",
+            placeholder="e.g. Mean Wind Speed - Pre-Monsoon",
+            key="avg_custom_title"
+        )
+
+    mean_speed_fig = create_mean_speed_rose(
+        freq_table, location_name, start_str, end_str,
+        color_palette=avg_color,
+        show_labels=avg_show_labels,
+        custom_title=avg_custom_title if avg_custom_title else None
+    )
     if mean_speed_fig is not None:
         st.pyplot(mean_speed_fig, use_container_width=True)
         
@@ -1336,6 +1360,7 @@ if 'freq_table' in st.session_state:
         - **Color** = average wind speed from that direction (see colorbar). Darker/higher = stronger winds.
         - **Center label** = % of time winds are calm (below {calm_threshold} {speed_unit}).
         - **Dominant direction** is the longest petal (most frequent).
+        - For your coastal Karnataka location: Expect strong SW–W winds during monsoon (Jun–Sep) and NE–E in winter (Dec–Feb).
         """)
     
     # ========== PROFESSIONAL FREQUENCY TABLE (Enviroware / EIA style) ==========
