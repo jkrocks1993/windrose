@@ -1436,14 +1436,17 @@ if 'freq_table' in st.session_state:
                 )
                 label = "📥 Download Wind Rose Excel (.xlsx)"
             
-            st.download_button(
-                label=label,
-                data=excel_bytes,
-                file_name=f"WindRose_{'Monthly_' if include_monthly else ''}{location_name.replace(' ', '_')}_{start_str}_{end_str}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                help="Includes Overall + one sheet per month with full frequency tables"
-            )
+            if excel_bytes is not None:
+                st.download_button(
+                    label=label,
+                    data=excel_bytes,
+                    file_name=f"WindRose_{'Monthly_' if include_monthly else ''}{location_name.replace(' ', '_')}_{start_str}_{end_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    help="Includes Overall + one sheet per month with full frequency tables"
+                )
+            else:
+                st.error("Could not generate Excel file. Please try again or use a longer time period.")
     
     # Raw data sample
     if show_raw_data:
